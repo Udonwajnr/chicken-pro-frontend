@@ -7,6 +7,16 @@ import api from "../../../../../lib/api";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 
+function useIsMobile() {
+  const [m, s] = useState(false);
+  useEffect(() => {
+    const c = () => s(window.innerWidth < 768);
+    c();
+    window.addEventListener("resize", c);
+    return () => window.removeEventListener("resize", c);
+  }, []);
+  return m;
+}
 const C = {
   creamBg: "#FAF7F2",
   creamSurface: "#F5F0E8",
@@ -37,7 +47,7 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-
+  const isMobile = useIsMobile();
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -173,14 +183,18 @@ export default function ProductDetailPage() {
       </div>
 
       <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 32 }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 380px",
+          gap: isMobile ? 16 : 32,
+        }}
       >
         {/* ── Left — Photos + Info ── */}
         <div>
           {/* Main photo */}
           <div
             style={{
-              height: 420,
+             height: isMobile ? 240 : 420,
               borderRadius: 16,
               background: photos[photoIdx]
                 ? `url(${photos[photoIdx]}) center/cover no-repeat`
@@ -194,7 +208,7 @@ export default function ProductDetailPage() {
             }}
           >
             {!photos[photoIdx] && (
-              <span style={{ fontSize: 80 }}>{categoryEmoji}</span>
+              <span style={{ fontSize: isMobile ? 48 : 80 }}>{categoryEmoji}</span>
             )}
             {product.isFeatured && (
               <div
@@ -484,8 +498,7 @@ export default function ProductDetailPage() {
               border: `1px solid ${C.creamBorder}`,
               borderRadius: 16,
               overflow: "hidden",
-              position: "sticky",
-              top: 100,
+              position: isMobile ? 'relative' : 'sticky', top: isMobile ? 'auto' : 100,
             }}
           >
             {/* Price header */}

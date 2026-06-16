@@ -316,3 +316,58 @@
     background: linear-gradient(90deg, var(--color-info), #5DADE2);
   }
 }
+
+@media (max-width: 768px) {
+ 
+  /* Landing page */
+  .hero-grid { grid-template-columns: 1fr !important; }
+  .hero-right { display: none !important; }
+  .breeds-grid { grid-template-columns: 1fr !important; }
+  .features-grid { grid-template-columns: 1fr !important; }
+  .steps-grid { grid-template-columns: 1fr 1fr !important; }
+  .steps-line { display: none !important; }
+  .testimonials-grid { grid-template-columns: 1fr !important; }
+  .pricing-grid { grid-template-columns: 1fr !important; }
+  .category-grid { grid-template-columns: repeat(3, 1fr) !important; }
+ 
+  /* Dashboard */
+  .stat-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  .stat-grid-3 { grid-template-columns: 1fr !important; }
+  .stat-grid-5 { grid-template-columns: repeat(2, 1fr) !important; }
+  .chart-grid { grid-template-columns: 1fr !important; }
+  .batch-grid { grid-template-columns: 1fr !important; }
+  .quick-actions-grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .finance-grid { grid-template-columns: 1fr !important; }
+  .product-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .product-detail-grid { grid-template-columns: 1fr !important; }
+  .form-2col { grid-template-columns: 1fr !important; }
+  .tips-grid { grid-template-columns: 1fr !important; }
+  .feed-cards-grid { grid-template-columns: 1fr !important; }
+  .health-cards-grid { grid-template-columns: 1fr !important; }
+  .production-cards-grid { grid-template-columns: 1fr !important; }
+  .phase-grid { grid-template-columns: 1fr !important; }
+  .batch-detail-2col { grid-template-columns: 1fr !important; }
+ 
+  /* Hide desktop nav */
+  .desktop-nav { display: none !important; }
+  .mobile-menu-btn { display: flex !important; }
+ 
+  /* Table horizontal scroll */
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-wrapper table { min-width: 600px; }
+}
+ 
+@media (max-width: 480px) {
+  .stat-grid-4 { grid-template-columns: 1fr !important; }
+  .stat-grid-5 { grid-template-columns: 1fr !important; }
+  .quick-actions-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .product-grid { grid-template-columns: 1fr !important; }
+  .category-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .steps-grid { grid-template-columns: 1fr !important; }
+}
+ 
+@media (min-width: 769px) {
+  .mobile-menu-btn { display: none !important; }
+  .mobile-sidebar-overlay { display: none !important; }
+}
+ 

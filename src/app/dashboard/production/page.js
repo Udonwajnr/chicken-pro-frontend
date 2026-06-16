@@ -9,6 +9,17 @@ import {
   Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 
+function useIsMobile() {
+  const [m, s] = useState(false);
+  useEffect(() => {
+    const c = () => s(window.innerWidth < 768);
+    c();
+    window.addEventListener("resize", c);
+    return () => window.removeEventListener("resize", c);
+  }, []);
+  return m;
+}
+
 const C = {
   forestBg:       '#0F1F14',
   forestSurface:  '#162B1C',
@@ -114,7 +125,7 @@ function WeightCard({ batch, overview, logs }) {
 
       <div style={{ padding: '16px 18px' }}>
         {/* Weight stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
           {[
             { label: 'Current Weight', value: latest ? `${latest}kg` : '—',    color: C.greenGlow  },
             { label: 'Target Weight',  value: target ? `${target}kg` : '—',    color: C.textPrimary },
@@ -207,7 +218,7 @@ function EggCard({ batch, overview, logs }) {
 
       <div style={{ padding: '16px 18px' }}>
         {/* Egg stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
           {[
             { label: 'Total Eggs',   value: fmtNum(overview?.totalEggs),   color: C.textPrimary },
             { label: 'Crates',       value: overview?.totalCrates || 0,     color: C.goldLight   },
@@ -276,6 +287,7 @@ export default function ProductionPage() {
   const [logs,      setLogs]      = useState({});
   const [loading,   setLoading]   = useState(true);
   const [view,      setView]      = useState('all');
+  const isMobile = useIsMobile();
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -352,7 +364,7 @@ export default function ProductionPage() {
       </div>
 
       {/* ── Summary Cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {loading ? [1,2,3,4].map(i => <Skeleton key={i} h={100} radius={12} />) : [
           {
             icon: '🐔', label: 'Active Batches',
@@ -436,11 +448,11 @@ export default function ProductionPage() {
 
       {/* ── Batch Grid ── */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
           {[1,2,3].map(i => <Skeleton key={i} h={280} radius={14} />)}
         </div>
       ) : displayBatches.length ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: 16 }}>
           {displayBatches.map(batch => (
             batch.breed === 'layer'
               ? <EggCard    key={batch._id} batch={batch} overview={overviews[batch._id]} logs={logs[batch._id]} />

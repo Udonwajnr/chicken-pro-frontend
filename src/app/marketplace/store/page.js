@@ -7,6 +7,16 @@ import api from "../../../../lib/api";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 
+function useIsMobile() {
+  const [m, s] = useState(false);
+  useEffect(() => {
+    const c = () => s(window.innerWidth < 768);
+    c();
+    window.addEventListener("resize", c);
+    return () => window.removeEventListener("resize", c);
+  }, []);
+  return m;
+}
 const C = {
   creamBg: "#FAF7F2",
   creamSurface: "#F5F0E8",
@@ -165,7 +175,11 @@ function StoreSetup({ onCreated }) {
             />
           </div>
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 14,
+            }}
           >
             <CreamInput
               label="Location"
@@ -470,7 +484,7 @@ function ProductForm({ onSaved, editProduct, onCancel }) {
 export default function MyStorePage() {
   const { user } = useAuth();
   const router = useRouter();
-
+  const isMobile = useIsMobile();
   const [store, setStore] = useState(null);
   const [dashboard, setDashboard] = useState(null);
   const [products, setProducts] = useState([]);
@@ -563,7 +577,7 @@ export default function MyStorePage() {
         style={{
           background: `linear-gradient(135deg, #1A3D22, #0F1F14)`,
           borderRadius: 16,
-          padding: "28px 32px",
+          padding: isMobile ? "18px 16px" : "28px 32px",
           marginBottom: 24,
           display: "flex",
           alignItems: "flex-start",
@@ -663,7 +677,7 @@ export default function MyStorePage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
+          gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)",
           gap: 14,
           marginBottom: 24,
         }}
@@ -1042,7 +1056,13 @@ function SellerOrders() {
   return (
     <div>
       {orders.length ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            gap: 14,
+          }}
+        >
           {orders.map((order) => (
             <div
               key={order._id}
@@ -1300,7 +1320,11 @@ function StoreSettings({ store, onUpdated }) {
             />
           </div>
           <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+              gap: 14,
+            }}
           >
             <CreamInput
               label="Location"

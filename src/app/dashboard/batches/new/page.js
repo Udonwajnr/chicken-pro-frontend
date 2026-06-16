@@ -1,25 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import api from '../../../../../lib/api';
+import api from "../../../../../lib/api";
 import toast from "react-hot-toast";
 
+function useIsMobile() {
+  const [m, s] = useState(false);
+  useEffect(() => {
+    const c = () => s(window.innerWidth < 768);
+    c();
+    window.addEventListener("resize", c);
+    return () => window.removeEventListener("resize", c);
+  }, []);
+  return m;
+}
+
 const C = {
-  forestBg: "#0F1F14",
   forestSurface: "#162B1C",
   forestSurface2: "#1C3524",
   forestBorder: "#234D2E",
-  creamBg: "#FAF7F2",
-  creamSurface: "#F5F0E8",
-  creamBorder: "#E8DFD0",
-  creamText: "#2C2416",
-  creamMuted: "#8A7560",
   green: "#2D7A3A",
   greenLight: "#3D9E4D",
   greenGlow: "#6FCF7F",
   greenFaint: "#1A3D22",
+  gold: "#C9A84C",
   textPrimary: "#F0EBE0",
   textSecondary: "#A89880",
   textMuted: "#5A6B5E",
@@ -33,16 +39,17 @@ const inputStyle = (focused, error) => ({
   padding: "11px 14px",
   fontSize: 14,
   color: C.textPrimary,
-  fontFamily: "Inter, sans-serif",
+  fontFamily: "Inter,sans-serif",
   outline: "none",
   transition: "all 0.15s",
   boxSizing: "border-box",
   boxShadow: focused ? "0 0 0 3px rgba(45,122,58,0.15)" : "none",
 });
 
-function Field({ label, hint, error, children }) {
+function Input({ label, hint, error, ...props }) {
+  const [f, sF] = useState(false);
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div style={{ marginBottom: 18 }}>
       {label && (
         <label
           style={{
@@ -56,7 +63,12 @@ function Field({ label, hint, error, children }) {
           {label}
         </label>
       )}
-      {children}
+      <input
+        {...props}
+        style={inputStyle(f, error)}
+        onFocus={() => sF(true)}
+        onBlur={() => sF(false)}
+      />
       {hint && (
         <p style={{ fontSize: 11, color: C.textMuted, marginTop: 5 }}>{hint}</p>
       )}
@@ -67,35 +79,33 @@ function Field({ label, hint, error, children }) {
   );
 }
 
-function Input({ label, hint, error, ...props }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <Field label={label} hint={hint} error={error}>
-      <input
-        {...props}
-        style={inputStyle(focused, error)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-      />
-    </Field>
-  );
-}
-
 function Textarea({ label, hint, error, ...props }) {
-  const [focused, setFocused] = useState(false);
+  const [f, sF] = useState(false);
   return (
-    <Field label={label} hint={hint} error={error}>
+    <div style={{ marginBottom: 18 }}>
+      {label && (
+        <label
+          style={{
+            display: "block",
+            fontSize: 12,
+            fontWeight: 600,
+            color: C.textSecondary,
+            marginBottom: 6,
+          }}
+        >
+          {label}
+        </label>
+      )}
       <textarea
         {...props}
-        style={{
-          ...inputStyle(focused, error),
-          resize: "vertical",
-          minHeight: 90,
-        }}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        style={{ ...inputStyle(f, error), resize: "vertical", minHeight: 80 }}
+        onFocus={() => sF(true)}
+        onBlur={() => sF(false)}
       />
-    </Field>
+      {hint && (
+        <p style={{ fontSize: 11, color: C.textMuted, marginTop: 5 }}>{hint}</p>
+      )}
+    </div>
   );
 }
 
@@ -104,24 +114,24 @@ const BREEDS = [
     key: "broiler",
     emoji: "🐔",
     label: "Broiler",
-    desc: "6-week cycle. Raised for meat. High volume, fast return.",
+    desc: "6-week cycle. Raised for meat.",
     cycle: "6 weeks",
     tracking: "Weight",
     tips: [
       "Buy day-old chicks from registered hatcheries",
       "Sell at exactly 6 weeks for best feed conversion",
-      "Volume is key — minimum 100 birds to be profitable",
+      "Minimum 100 birds to be profitable",
     ],
   },
   {
     key: "layer",
     emoji: "🥚",
     label: "Layer",
-    desc: "72-week cycle. Raised for eggs. Daily income once laying starts.",
+    desc: "72-week cycle. Raised for eggs.",
     cycle: "72 weeks",
     tracking: "Egg production",
     tips: [
-      "Buy sexed pullets only — no males",
+      "Buy sexed pullets only",
       "Do NOT give layer mash before week 18",
       "Maintain 16 hours of light per day",
     ],
@@ -130,20 +140,20 @@ const BREEDS = [
     key: "cockerel",
     emoji: "🐓",
     label: "Cockerel",
-    desc: "12-week cycle. Local chicken. Premium prices at festive seasons.",
+    desc: "12-week cycle. Local chicken.",
     cycle: "12 weeks",
     tracking: "Weight",
     tips: [
-      "Time batches to reach maturity before Christmas or Eid",
+      "Time batches to Christmas or Eid",
       "More disease-resistant than broilers",
-      "Buyers pay premium for local chicken taste",
+      "Buyers pay premium for local taste",
     ],
   },
 ];
 
 export default function NewBatchPage() {
   const router = useRouter();
-
+  const isMobile = useIsMobile();
   const [form, setForm] = useState({
     name: "",
     breed: "",
@@ -155,16 +165,14 @@ export default function NewBatchPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
-  const update = (field, val) => setForm((p) => ({ ...p, [field]: val }));
-
+  const update = (f, v) => setForm((p) => ({ ...p, [f]: v }));
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = "Batch name is required";
-    if (!form.breed) e.breed = "Please select a breed";
-    if (!form.quantity) e.quantity = "Quantity is required";
-    else if (parseInt(form.quantity) < 1)
-      e.quantity = "Quantity must be at least 1";
-    if (!form.startDate) e.startDate = "Start date is required";
+    if (!form.name.trim()) e.name = "Required";
+    if (!form.breed) e.breed = "Select a breed";
+    if (!form.quantity) e.quantity = "Required";
+    else if (parseInt(form.quantity) < 1) e.quantity = "Min 1";
+    if (!form.startDate) e.startDate = "Required";
     return e;
   };
 
@@ -175,7 +183,6 @@ export default function NewBatchPage() {
       setErrors(errs);
       return;
     }
-
     setLoading(true);
     try {
       const res = await api.post("/batches", {
@@ -186,27 +193,22 @@ export default function NewBatchPage() {
         notes: form.notes,
         livestockType: form.livestockType,
       });
-      toast.success(
-        `Batch "${form.name}" created! Vaccination schedule auto-generated.`,
-      );
+      toast.success(`Batch "${form.name}" created!`);
       router.push(`/dashboard/batches/${res.data.batch._id}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to create batch");
+      toast.error(err.response?.data?.message || "Failed");
     } finally {
       setLoading(false);
     }
   };
 
   const selectedBreed = BREEDS.find((b) => b.key === form.breed);
-
-  // Auto-calculate target date
   const targetDate =
     form.startDate && form.breed
       ? (() => {
-          const weeks =
-            { broiler: 6, layer: 72, cockerel: 12 }[form.breed] || 6;
+          const w = { broiler: 6, layer: 72, cockerel: 12 }[form.breed] || 6;
           const d = new Date(form.startDate);
-          d.setDate(d.getDate() + weeks * 7);
+          d.setDate(d.getDate() + w * 7);
           return d.toLocaleDateString("en-GB", {
             day: "numeric",
             month: "short",
@@ -215,16 +217,38 @@ export default function NewBatchPage() {
         })()
       : null;
 
+  const vaccinePreview =
+    {
+      broiler: [
+        { day: 7, name: "Newcastle (Lasota)", method: "Eye drop" },
+        { day: 14, name: "Gumboro (IBD)", method: "Water" },
+        { day: 21, name: "Newcastle Booster", method: "Water" },
+        { day: 28, name: "Gumboro Booster", method: "Water" },
+      ],
+      layer: [
+        { day: 7, name: "Newcastle (Lasota)", method: "Eye drop" },
+        { day: 14, name: "Gumboro (IBD)", method: "Water" },
+        { day: 42, name: "Fowl Pox", method: "Wing stab" },
+        { day: 56, name: "Newcastle (Komarov)", method: "Injection" },
+      ],
+      cockerel: [
+        { day: 7, name: "Newcastle (Lasota)", method: "Eye drop" },
+        { day: 14, name: "Gumboro (IBD)", method: "Water" },
+        { day: 42, name: "Fowl Pox", method: "Wing stab" },
+      ],
+    }[form.breed] || [];
+
+  const pad = isMobile ? "16px 14px" : "28px 32px";
+
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+    <div style={{ padding: pad, maxWidth: 1100, margin: "0 auto" }}>
+      <div style={{ marginBottom: isMobile ? 16 : 28 }}>
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            marginBottom: 12,
+            gap: 8,
+            marginBottom: 10,
           }}
         >
           <Link
@@ -233,13 +257,11 @@ export default function NewBatchPage() {
           >
             ← Batches
           </Link>
-          <span style={{ color: C.forestBorder }}>›</span>
-          <span style={{ color: C.textPrimary, fontSize: 13 }}>New Batch</span>
         </div>
         <h1
           style={{
-            fontFamily: "Playfair Display, Georgia, serif",
-            fontSize: 28,
+            fontFamily: "Playfair Display,Georgia,serif",
+            fontSize: isMobile ? 22 : 28,
             fontWeight: 700,
             color: C.textPrimary,
             marginBottom: 4,
@@ -247,25 +269,28 @@ export default function NewBatchPage() {
         >
           Create New Batch
         </h1>
-        <p style={{ fontSize: 13, color: C.textMuted }}>
-          A vaccination schedule will be auto-generated when you save.
+        <p style={{ fontSize: 12, color: C.textMuted }}>
+          Vaccination schedule auto-generates on save.
         </p>
       </div>
 
       <div
-        style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 24 }}
+        style={{
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 320px",
+          gap: isMobile ? 16 : 24,
+        }}
       >
-        {/* Left — Form */}
+        {/* Form */}
         <div>
           <form onSubmit={handleSubmit}>
-            {/* Basic Info */}
             <div
               style={{
                 background: C.forestSurface,
                 border: `1px solid ${C.forestBorder}`,
                 borderRadius: 14,
-                padding: "24px",
-                marginBottom: 20,
+                padding: isMobile ? "18px" : "24px",
+                marginBottom: 16,
               }}
             >
               <div
@@ -273,32 +298,30 @@ export default function NewBatchPage() {
                   fontSize: 13,
                   fontWeight: 700,
                   color: C.textPrimary,
-                  marginBottom: 20,
-                  paddingBottom: 12,
+                  marginBottom: 18,
+                  paddingBottom: 10,
                   borderBottom: `1px solid ${C.forestBorder}`,
                 }}
               >
                 📋 Basic Information
               </div>
-
               <Input
                 label="Batch Name *"
                 placeholder="e.g. Batch 1 — June 2025"
                 value={form.name}
                 onChange={(e) => update("name", e.target.value)}
                 error={errors.name}
-                hint="Give it a name you can easily recognise later"
+                hint="Easy to recognise later"
               />
-
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
                   gap: 14,
                 }}
               >
                 <Input
-                  label="Quantity (birds) *"
+                  label="Quantity *"
                   type="number"
                   min="1"
                   placeholder="e.g. 200"
@@ -314,23 +337,21 @@ export default function NewBatchPage() {
                   error={errors.startDate}
                 />
               </div>
-
               <Textarea
                 label="Notes (optional)"
-                placeholder="Any notes about this batch — source of chicks, pen number, etc."
+                placeholder="Source of chicks, pen number, etc."
                 value={form.notes}
                 onChange={(e) => update("notes", e.target.value)}
               />
             </div>
 
-            {/* Breed Selector */}
             <div
               style={{
                 background: C.forestSurface,
                 border: `1px solid ${C.forestBorder}`,
                 borderRadius: 14,
-                padding: "24px",
-                marginBottom: 20,
+                padding: isMobile ? "18px" : "24px",
+                marginBottom: 16,
               }}
             >
               <div
@@ -339,27 +360,26 @@ export default function NewBatchPage() {
                   fontWeight: 700,
                   color: C.textPrimary,
                   marginBottom: 6,
-                  paddingBottom: 12,
+                  paddingBottom: 10,
                   borderBottom: `1px solid ${C.forestBorder}`,
                 }}
               >
                 🐔 Select Breed *
               </div>
               {errors.breed && (
-                <p style={{ fontSize: 11, color: "#E88080", marginBottom: 12 }}>
+                <p style={{ fontSize: 11, color: "#E88080", marginBottom: 10 }}>
                   {errors.breed}
                 </p>
               )}
-
               <div
-                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                style={{ display: "flex", flexDirection: "column", gap: 10 }}
               >
                 {BREEDS.map((b) => (
                   <div
                     key={b.key}
                     onClick={() => update("breed", b.key)}
                     style={{
-                      padding: "16px 18px",
+                      padding: isMobile ? "14px" : "16px 18px",
                       borderRadius: 12,
                       cursor: "pointer",
                       border: `2px solid ${form.breed === b.key ? C.green : C.forestBorder}`,
@@ -368,17 +388,17 @@ export default function NewBatchPage() {
                       transition: "all 0.2s",
                       boxShadow:
                         form.breed === b.key
-                          ? `0 0 0 1px ${C.green}, 0 4px 12px rgba(45,122,58,0.15)`
+                          ? `0 0 0 1px ${C.green},0 4px 12px rgba(45,122,58,0.15)`
                           : "none",
                     }}
                   >
                     <div
-                      style={{ display: "flex", alignItems: "center", gap: 14 }}
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
                     >
                       <div
                         style={{
-                          width: 48,
-                          height: 48,
+                          width: isMobile ? 40 : 48,
+                          height: isMobile ? 40 : 48,
                           borderRadius: 10,
                           flexShrink: 0,
                           background:
@@ -389,7 +409,7 @@ export default function NewBatchPage() {
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: 24,
+                          fontSize: isMobile ? 20 : 24,
                         }}
                       >
                         {b.emoji}
@@ -405,7 +425,7 @@ export default function NewBatchPage() {
                         >
                           <span
                             style={{
-                              fontSize: 15,
+                              fontSize: isMobile ? 14 : 15,
                               fontWeight: 700,
                               color: C.textPrimary,
                             }}
@@ -413,7 +433,7 @@ export default function NewBatchPage() {
                             {b.label}
                           </span>
                           <span style={{ fontSize: 11, color: C.textMuted }}>
-                            · {b.cycle} · {b.tracking} tracking
+                            · {b.cycle}
                           </span>
                           {form.breed === b.key && (
                             <span
@@ -437,7 +457,7 @@ export default function NewBatchPage() {
                         </div>
                         <p
                           style={{
-                            fontSize: 13,
+                            fontSize: 12,
                             color: C.textMuted,
                             margin: 0,
                           }}
@@ -446,53 +466,43 @@ export default function NewBatchPage() {
                         </p>
                       </div>
                     </div>
-
                     {form.breed === b.key && (
                       <div
                         style={{
-                          marginTop: 14,
-                          paddingTop: 12,
+                          marginTop: 12,
+                          paddingTop: 10,
                           borderTop: `1px solid ${C.forestBorder}`,
                         }}
                       >
                         <div
                           style={{
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: 700,
                             color: "#C9A84C",
                             textTransform: "uppercase",
                             letterSpacing: 1,
-                            marginBottom: 8,
+                            marginBottom: 6,
                           }}
                         >
-                          💡 Quick Tips
+                          💡 Tips
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 6,
-                          }}
-                        >
-                          {b.tips.map((tip, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                display: "flex",
-                                gap: 8,
-                                fontSize: 12,
-                                color: C.textSecondary,
-                              }}
-                            >
-                              <span
-                                style={{ color: C.greenGlow, flexShrink: 0 }}
-                              >
-                                →
-                              </span>
-                              {tip}
-                            </div>
-                          ))}
-                        </div>
+                        {b.tips.map((tip, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              fontSize: 11,
+                              color: C.textSecondary,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <span style={{ color: C.greenGlow, flexShrink: 0 }}>
+                              →
+                            </span>
+                            {tip}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -500,22 +510,18 @@ export default function NewBatchPage() {
               </div>
             </div>
 
-            {/* Submit */}
-            <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", gap: 10 }}>
               <Link
                 href="/dashboard/batches"
                 style={{
-                  flex: "0 0 auto",
-                  padding: "12px 22px",
+                  padding: "12px 20px",
                   borderRadius: 8,
                   border: `1.5px solid ${C.forestBorder}`,
                   background: "transparent",
                   color: C.textSecondary,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: 600,
                   textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
                 }}
               >
                 Cancel
@@ -525,17 +531,17 @@ export default function NewBatchPage() {
                 disabled={loading}
                 style={{
                   flex: 1,
-                  padding: "13px 0",
+                  padding: "12px 0",
                   borderRadius: 8,
                   border: "none",
                   cursor: loading ? "not-allowed" : "pointer",
                   background: loading
                     ? "#5A6B5E"
-                    : `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
+                    : `linear-gradient(135deg,${C.green},${C.greenLight})`,
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 700,
-                  fontFamily: "Inter, sans-serif",
+                  fontFamily: "Inter,sans-serif",
                   boxShadow: loading
                     ? "none"
                     : "0 4px 14px rgba(45,122,58,0.35)",
@@ -543,48 +549,29 @@ export default function NewBatchPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   gap: 8,
-                  transition: "all 0.2s",
                 }}
               >
-                {loading ? (
-                  <>
-                    <span
-                      style={{
-                        width: 14,
-                        height: 14,
-                        border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "#fff",
-                        borderRadius: "50%",
-                        display: "inline-block",
-                        animation: "spin 0.8s linear infinite",
-                      }}
-                    />
-                    Creating batch...
-                  </>
-                ) : (
-                  "🐔 Create Batch & Generate Schedule"
-                )}
+                {loading ? "Creating..." : "🐔 Create Batch"}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Right — Summary Card */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Batch Preview */}
+        {/* Preview card */}
+        <div>
           <div
             style={{
               background: C.forestSurface,
               border: `1px solid ${C.forestBorder}`,
               borderRadius: 14,
               overflow: "hidden",
-              position: "sticky",
-              top: 80,
+              position: isMobile ? "relative" : "sticky",
+              top: isMobile ? "auto" : 80,
             }}
           >
             <div
               style={{
-                padding: "14px 18px",
+                padding: "12px 16px",
                 background: C.forestSurface2,
                 borderBottom: `1px solid ${C.forestBorder}`,
                 fontSize: 12,
@@ -596,78 +583,69 @@ export default function NewBatchPage() {
             >
               Batch Preview
             </div>
-
-            <div style={{ padding: "18px" }}>
-              {/* Name */}
-              <div style={{ marginBottom: 16 }}>
+            <div style={{ padding: "16px" }}>
+              <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
                     fontSize: 10,
                     color: C.textMuted,
                     textTransform: "uppercase",
                     letterSpacing: 1,
-                    marginBottom: 4,
+                    marginBottom: 3,
                   }}
                 >
                   Name
                 </div>
                 <div
                   style={{
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: 700,
                     color: form.name ? C.textPrimary : C.forestBorder,
                   }}
                 >
-                  {form.name || "Enter a batch name..."}
+                  {form.name || "Enter a name..."}
                 </div>
               </div>
-
-              {/* Breed */}
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 14 }}>
                 <div
                   style={{
                     fontSize: 10,
                     color: C.textMuted,
                     textTransform: "uppercase",
                     letterSpacing: 1,
-                    marginBottom: 4,
+                    marginBottom: 3,
                   }}
                 >
                   Breed
                 </div>
                 <div
                   style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     color: form.breed ? C.textPrimary : C.forestBorder,
                   }}
                 >
                   {selectedBreed
                     ? `${selectedBreed.emoji} ${selectedBreed.label}`
-                    : "Select a breed..."}
+                    : "Select breed..."}
                 </div>
               </div>
-
-              {/* Stats */}
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
-                  marginBottom: 16,
+                  gap: 8,
+                  marginBottom: 14,
                 }}
               >
                 {[
                   {
-                    label: "Quantity",
-                    value: form.quantity ? `${form.quantity} birds` : "—",
+                    l: "Quantity",
+                    v: form.quantity ? `${form.quantity} birds` : "—",
                   },
+                  { l: "Cycle", v: selectedBreed?.cycle || "—" },
                   {
-                    label: "Cycle",
-                    value: selectedBreed ? selectedBreed.cycle : "—",
-                  },
-                  {
-                    label: "Start Date",
-                    value: form.startDate
+                    l: "Start",
+                    v: form.startDate
                       ? new Date(form.startDate).toLocaleDateString("en-GB", {
                           day: "numeric",
                           month: "short",
@@ -675,42 +653,40 @@ export default function NewBatchPage() {
                         })
                       : "—",
                   },
-                  { label: "Target Date", value: targetDate || "—" },
+                  { l: "Target", v: targetDate || "—" },
                 ].map((item, i) => (
                   <div
                     key={i}
                     style={{
                       background: C.forestSurface2,
                       borderRadius: 8,
-                      padding: "10px 12px",
+                      padding: "8px 10px",
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 10,
+                        fontSize: 9,
                         color: C.textMuted,
-                        marginBottom: 3,
+                        marginBottom: 2,
                       }}
                     >
-                      {item.label}
+                      {item.l}
                     </div>
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: 600,
                         color: C.textPrimary,
                       }}
                     >
-                      {item.value}
+                      {item.v}
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Auto-gen notice */}
               <div
                 style={{
-                  padding: "12px 14px",
+                  padding: "10px 12px",
                   borderRadius: 8,
                   background: C.greenFaint,
                   border: `1px solid ${C.green}`,
@@ -721,103 +697,65 @@ export default function NewBatchPage() {
                     fontSize: 11,
                     fontWeight: 700,
                     color: C.greenGlow,
-                    marginBottom: 6,
+                    marginBottom: 4,
                   }}
                 >
                   ✓ Auto-generated on save:
                 </div>
                 {[
-                  "💉 Full vaccination schedule",
-                  "📅 Target sell/harvest date",
+                  "💉 Vaccination schedule",
+                  "📅 Target sell date",
                   "🌾 Feed phase calendar",
                 ].map((item, i) => (
                   <div
                     key={i}
                     style={{
-                      fontSize: 11,
+                      fontSize: 10,
                       color: C.textMuted,
-                      marginBottom: 3,
+                      marginBottom: 2,
                     }}
                   >
                     {item}
                   </div>
                 ))}
               </div>
-
-              {/* Vaccination preview */}
               {form.breed && (
                 <div style={{ marginTop: 14 }}>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: 700,
                       color: C.textMuted,
                       textTransform: "uppercase",
                       letterSpacing: 1,
-                      marginBottom: 10,
+                      marginBottom: 8,
                     }}
                   >
-                    Vaccination Schedule Preview
+                    Vaccination Preview
                   </div>
-                  {(
-                    {
-                      broiler: [
-                        {
-                          day: 7,
-                          name: "Newcastle (Lasota)",
-                          method: "Eye drop",
-                        },
-                        { day: 14, name: "Gumboro (IBD)", method: "Water" },
-                        { day: 21, name: "Newcastle Booster", method: "Water" },
-                        { day: 28, name: "Gumboro Booster", method: "Water" },
-                      ],
-                      layer: [
-                        {
-                          day: 7,
-                          name: "Newcastle (Lasota)",
-                          method: "Eye drop",
-                        },
-                        { day: 14, name: "Gumboro (IBD)", method: "Water" },
-                        { day: 42, name: "Fowl Pox", method: "Wing stab" },
-                        {
-                          day: 56,
-                          name: "Newcastle (Komarov)",
-                          method: "Injection",
-                        },
-                      ],
-                      cockerel: [
-                        {
-                          day: 7,
-                          name: "Newcastle (Lasota)",
-                          method: "Eye drop",
-                        },
-                        { day: 14, name: "Gumboro (IBD)", method: "Water" },
-                        { day: 42, name: "Fowl Pox", method: "Wing stab" },
-                      ],
-                    }[form.breed] || []
-                  ).map((v, i) => (
+                  {vaccinePreview.map((v, i) => (
                     <div
                       key={i}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: 10,
-                        padding: "8px 0",
+                        gap: 8,
+                        padding: "6px 0",
                         borderBottom: `1px solid ${C.forestBorder}`,
                       }}
                     >
                       <div
                         style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 7,
+                          width: 28,
+                          height: 28,
+                          borderRadius: 6,
                           flexShrink: 0,
                           background: C.forestSurface2,
                           border: `1px solid ${C.forestBorder}`,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: 700,
                           color: C.textMuted,
                         }}
@@ -827,14 +765,14 @@ export default function NewBatchPage() {
                       <div>
                         <div
                           style={{
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: 600,
                             color: C.textPrimary,
                           }}
                         >
                           {v.name}
                         </div>
-                        <div style={{ fontSize: 10, color: C.textMuted }}>
+                        <div style={{ fontSize: 9, color: C.textMuted }}>
                           {v.method}
                         </div>
                       </div>
@@ -846,8 +784,7 @@ export default function NewBatchPage() {
           </div>
         </div>
       </div>
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }

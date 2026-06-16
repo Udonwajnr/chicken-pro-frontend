@@ -7,6 +7,17 @@ import api from "../../../../lib/api";
 import { useAuth } from "@/context/AuthContext";
 import toast from "react-hot-toast";
 
+function useIsMobile() {
+  const [m, s] = useState(false);
+  useEffect(() => {
+    const c = () => s(window.innerWidth < 768);
+    c();
+    window.addEventListener("resize", c);
+    return () => window.removeEventListener("resize", c);
+  }, []);
+  return m;
+}
+
 const C = {
   creamBg: "#FAF7F2",
   creamSurface: "#F5F0E8",
@@ -355,7 +366,9 @@ function OrderCard({ order, role, onRefresh }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
+              gridTemplateColumns: isMobile
+                ? "repeat(2, 1fr)"
+                : "repeat(4, 1fr)",
               gap: 12,
               marginBottom: 20,
             }}
@@ -750,7 +763,7 @@ function OrderCard({ order, role, onRefresh }) {
 export default function OrdersPage() {
   const { user } = useAuth();
   const router = useRouter();
-
+  const isMobile = useIsMobile();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState("buyer");
@@ -819,6 +832,7 @@ export default function OrdersPage() {
           padding: 4,
           marginBottom: 20,
           width: "fit-content",
+          overflowX: 'auto', WebkitOverflowScrolling: 'touch'
         }}
       >
         {[

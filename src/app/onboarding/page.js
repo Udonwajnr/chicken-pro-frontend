@@ -6,7 +6,9 @@ import { useAuth } from '@/context/AuthContext';
 import api from '../../../lib/api';
 import toast from 'react-hot-toast';
 import AuthGuard from '@/components/AuthGuard';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
+const isMobile = useIsMobile();
 // ── Shared Styles ──────────────────────────────
 
 

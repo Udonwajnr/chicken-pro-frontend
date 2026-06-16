@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import toast from "react-hot-toast";
 
 const inputStyle = {
@@ -18,7 +19,6 @@ const inputStyle = {
   transition: "all 0.15s",
   boxSizing: "border-box",
 };
-
 const labelStyle = {
   display: "block",
   fontSize: 12,
@@ -49,6 +49,7 @@ const QUOTES = [
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const isMobile = useIsMobile();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
@@ -73,22 +74,13 @@ export default function LoginPage() {
       setErrors(errs);
       return;
     }
-
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
       toast.success(`Welcome back, ${user.name.split(" ")[0]}!`);
-      const redirectTo = sessionStorage.getItem("redirectAfterLogin");
-      if (redirectTo) {
-        sessionStorage.removeItem("redirectAfterLogin");
-        router.push(redirectTo);
-      } else {
-        router.push(user.onboardingComplete ? "/dashboard" : "/onboarding");
-      }
+      router.push(user.onboardingComplete ? "/dashboard" : "/onboarding");
     } catch (err) {
-      const msg =
-        err.response?.data?.message || "Login failed. Please try again.";
-      toast.error(msg);
+      toast.error(err.response?.data?.message || "Login failed.");
       setErrors({ general: "Invalid email or password" });
     } finally {
       setLoading(false);
@@ -99,263 +91,289 @@ export default function LoginPage() {
     <div
       style={{
         minHeight: "100vh",
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
+        display: isMobile ? "flex" : "grid",
+        gridTemplateColumns: isMobile ? undefined : "1fr 1fr",
+        flexDirection: isMobile ? "column" : undefined,
         fontFamily: "Inter, sans-serif",
       }}
     >
-      {/* ── LEFT — Forest Green Side ── */}
-      <div
-        style={{
-          background:
-            "linear-gradient(160deg, #1A3D22 0%, #0F1F14 60%, #0A1409 100%)",
-          padding: "48px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Background decoration */}
+      {/* ── Left — Desktop only ── */}
+      {!isMobile && (
         <div
           style={{
-            position: "absolute",
-            bottom: "-60px",
-            right: "-60px",
-            fontSize: 240,
-            opacity: 0.04,
-            pointerEvents: "none",
-            lineHeight: 1,
-          }}
-        >
-          🐔
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            top: "20%",
-            left: "-40px",
-            width: 300,
-            height: 300,
             background:
-              "radial-gradient(circle, rgba(45,122,58,0.12) 0%, transparent 70%)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Logo */}
-        <a
-          href="/"
-          style={{
+              "linear-gradient(160deg, #1A3D22 0%, #0F1F14 60%, #0A1409 100%)",
+            padding: "48px",
             display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
           <div
             style={{
-              width: 38,
-              height: 38,
-              background: "linear-gradient(135deg, #2D7A3A, #4CAF5C)",
-              borderRadius: 10,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
+              position: "absolute",
+              bottom: -60,
+              right: -60,
+              fontSize: 240,
+              opacity: 0.04,
+              pointerEvents: "none",
+              lineHeight: 1,
             }}
           >
             🐔
           </div>
-          <span
-            style={{
-              fontFamily: "Playfair Display, Georgia, serif",
-              fontSize: 22,
-              fontWeight: 700,
-              color: "#FAF7F2",
-            }}
-          >
-            Chicken<span style={{ color: "#6FCF7F" }}>Pro</span>
-          </span>
-        </a>
 
-        {/* Middle content */}
-        <div style={{ position: "relative", zIndex: 1 }}>
-          <h1
+          <a
+            href="/"
             style={{
-              fontFamily: "Playfair Display, Georgia, serif",
-              fontSize: 40,
-              fontWeight: 800,
-              color: "#FAF7F2",
-              lineHeight: 1.2,
-              marginBottom: 16,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              textDecoration: "none",
             }}
           >
-            Welcome back.
-            <br />
-            <span
-              style={{
-                background: "linear-gradient(135deg, #4CAF5C, #6FCF7F)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Your farm awaits.
-            </span>
-          </h1>
-
-          <p
-            style={{
-              fontSize: 15,
-              color: "#5A6B5E",
-              lineHeight: 1.7,
-              marginBottom: 40,
-              maxWidth: 380,
-            }}
-          >
-            Log in to track your flocks, check vaccination schedules, and see
-            today's profit — all in one place.
-          </p>
-
-          {/* Quick Stats */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              marginBottom: 40,
-            }}
-          >
-            {[
-              {
-                icon: "🐔",
-                label: "Active batches",
-                value: "Track unlimited flocks",
-              },
-              {
-                icon: "💉",
-                label: "Vaccinations",
-                value: "Auto-scheduled reminders",
-              },
-              {
-                icon: "💰",
-                label: "P&L tracking",
-                value: "Real-time profit view",
-              },
-              {
-                icon: "🌾",
-                label: "Feed guide",
-                value: "Daily recommendations",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  background: "rgba(22,43,28,0.5)",
-                  border: "1px solid #1C3524",
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <span style={{ fontSize: 20 }}>{item.icon}</span>
-                <div>
-                  <div
-                    style={{ fontSize: 10, color: "#3D6B4A", marginBottom: 2 }}
-                  >
-                    {item.label}
-                  </div>
-                  <div
-                    style={{ fontSize: 12, fontWeight: 600, color: "#A89880" }}
-                  >
-                    {item.value}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Testimonial */}
-        <div
-          style={{
-            background: "rgba(22,43,28,0.6)",
-            border: "1px solid #1C3524",
-            borderRadius: 14,
-            padding: "22px 24px",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          <div style={{ display: "flex", gap: 2, marginBottom: 12 }}>
-            {[...Array(5)].map((_, i) => (
-              <span key={i} style={{ color: "#C9A84C", fontSize: 13 }}>
-                ★
-              </span>
-            ))}
-          </div>
-          <p
-            style={{
-              fontSize: 14,
-              color: "#A89880",
-              lineHeight: 1.7,
-              fontStyle: "italic",
-              marginBottom: 16,
-            }}
-          >
-            "{quote.text}"
-          </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #2D7A3A, #C9A84C)",
+                width: 38,
+                height: 38,
+                background: "linear-gradient(135deg, #2D7A3A, #4CAF5C)",
+                borderRadius: 10,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#fff",
+                fontSize: 20,
               }}
             >
-              {quote.author
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .slice(0, 2)}
+              🐔
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#FAF7F2" }}>
-                {quote.author}
+            <span
+              style={{
+                fontFamily: "Playfair Display, Georgia, serif",
+                fontSize: 22,
+                fontWeight: 700,
+                color: "#FAF7F2",
+              }}
+            >
+              Chicken<span style={{ color: "#6FCF7F" }}>Pro</span>
+            </span>
+          </a>
+
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <h1
+              style={{
+                fontFamily: "Playfair Display, Georgia, serif",
+                fontSize: 40,
+                fontWeight: 800,
+                color: "#FAF7F2",
+                lineHeight: 1.2,
+                marginBottom: 16,
+              }}
+            >
+              Welcome back.
+              <br />
+              <span
+                style={{
+                  background: "linear-gradient(135deg, #4CAF5C, #6FCF7F)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                Your farm awaits.
+              </span>
+            </h1>
+            <p
+              style={{
+                fontSize: 15,
+                color: "#5A6B5E",
+                lineHeight: 1.7,
+                marginBottom: 40,
+                maxWidth: 380,
+              }}
+            >
+              Log in to track your flocks, check vaccination schedules, and see
+              today's profit.
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
+              {[
+                {
+                  icon: "🐔",
+                  label: "Active batches",
+                  value: "Track unlimited",
+                },
+                { icon: "💉", label: "Vaccinations", value: "Auto-scheduled" },
+                {
+                  icon: "💰",
+                  label: "P&L tracking",
+                  value: "Real-time profit",
+                },
+                {
+                  icon: "🌾",
+                  label: "Feed guide",
+                  value: "Daily recommendations",
+                },
+              ].map((item, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: "rgba(22,43,28,0.5)",
+                    border: "1px solid #1C3524",
+                    borderRadius: 10,
+                    padding: "14px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <span style={{ fontSize: 20 }}>{item.icon}</span>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: "#3D6B4A",
+                        marginBottom: 2,
+                      }}
+                    >
+                      {item.label}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#A89880",
+                      }}
+                    >
+                      {item.value}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "rgba(22,43,28,0.6)",
+              border: "1px solid #1C3524",
+              borderRadius: 14,
+              padding: "22px 24px",
+            }}
+          >
+            <div style={{ display: "flex", gap: 2, marginBottom: 12 }}>
+              {[...Array(5)].map((_, i) => (
+                <span key={i} style={{ color: "#C9A84C", fontSize: 13 }}>
+                  ★
+                </span>
+              ))}
+            </div>
+            <p
+              style={{
+                fontSize: 14,
+                color: "#A89880",
+                lineHeight: 1.7,
+                fontStyle: "italic",
+                marginBottom: 16,
+              }}
+            >
+              "{quote.text}"
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, #2D7A3A, #C9A84C)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#fff",
+                }}
+              >
+                {quote.author
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .slice(0, 2)}
               </div>
-              <div style={{ fontSize: 11, color: "#3D6B4A" }}>{quote.role}</div>
+              <div>
+                <div
+                  style={{ fontSize: 13, fontWeight: 600, color: "#FAF7F2" }}
+                >
+                  {quote.author}
+                </div>
+                <div style={{ fontSize: 11, color: "#3D6B4A" }}>
+                  {quote.role}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ── RIGHT — Cream Side ── */}
+      {/* ── Right — Form ── */}
       <div
         style={{
           background: "#FAF7F2",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          padding: "48px 56px",
+          padding: isMobile ? "32px 20px" : "48px 56px",
+          flex: isMobile ? 1 : undefined,
         }}
       >
         <div style={{ maxWidth: 400, width: "100%", margin: "0 auto" }}>
-          {/* Header */}
-          <div style={{ marginBottom: 36 }}>
+          {/* Mobile logo */}
+          {isMobile && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: 24,
+              }}
+            >
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: "linear-gradient(135deg, #2D7A3A, #4CAF5C)",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 16,
+                }}
+              >
+                🐔
+              </div>
+              <span
+                style={{
+                  fontFamily: "Playfair Display, Georgia, serif",
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "#2C2416",
+                }}
+              >
+                Chicken<span style={{ color: "#2D7A3A" }}>Pro</span>
+              </span>
+            </div>
+          )}
+
+          <div style={{ marginBottom: isMobile ? 24 : 36 }}>
             <h2
               style={{
                 fontFamily: "Playfair Display, Georgia, serif",
-                fontSize: 30,
+                fontSize: isMobile ? 26 : 30,
                 fontWeight: 700,
                 color: "#2C2416",
                 marginBottom: 6,
@@ -368,7 +386,6 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* General Error */}
           {errors.general && (
             <div
               style={{
@@ -388,9 +405,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit}>
-            {/* Email */}
             <div style={{ marginBottom: 18 }}>
               <label style={labelStyle}>Email Address</label>
               <input
@@ -404,16 +419,6 @@ export default function LoginPage() {
                     ? { borderColor: "#C0392B", background: "#FFF5F5" }
                     : {}),
                 }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = "#2D7A3A";
-                  e.target.style.boxShadow = "0 0 0 3px rgba(45,122,58,0.12)";
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = errors.email
-                    ? "#C0392B"
-                    : "#E8DFD0";
-                  e.target.style.boxShadow = "none";
-                }}
               />
               {errors.email && (
                 <p style={{ fontSize: 11, color: "#C0392B", marginTop: 5 }}>
@@ -422,7 +427,6 @@ export default function LoginPage() {
               )}
             </div>
 
-            {/* Password */}
             <div style={{ marginBottom: 8 }}>
               <div
                 style={{
@@ -442,7 +446,7 @@ export default function LoginPage() {
                     fontWeight: 500,
                   }}
                 >
-                  Forgot password?
+                  Forgot?
                 </a>
               </div>
               <div style={{ position: "relative" }}>
@@ -454,19 +458,7 @@ export default function LoginPage() {
                   style={{
                     ...inputStyle,
                     paddingRight: 44,
-                    ...(errors.password
-                      ? { borderColor: "#C0392B", background: "#FFF5F5" }
-                      : {}),
-                  }}
-                  onFocus={(e) => {
-                    e.target.style.borderColor = "#2D7A3A";
-                    e.target.style.boxShadow = "0 0 0 3px rgba(45,122,58,0.12)";
-                  }}
-                  onBlur={(e) => {
-                    e.target.style.borderColor = errors.password
-                      ? "#C0392B"
-                      : "#E8DFD0";
-                    e.target.style.boxShadow = "none";
+                    ...(errors.password ? { borderColor: "#C0392B" } : {}),
                   }}
                 />
                 <button
@@ -496,7 +488,6 @@ export default function LoginPage() {
 
             <div style={{ marginBottom: 28 }} />
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -514,35 +505,16 @@ export default function LoginPage() {
                   : "linear-gradient(135deg, #2D7A3A, #3D9E4D)",
                 boxShadow: loading ? "none" : "0 6px 20px rgba(45,122,58,0.4)",
                 fontFamily: "Inter, sans-serif",
-                transition: "all 0.2s",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
               }}
             >
-              {loading ? (
-                <>
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      borderTopColor: "#fff",
-                      borderRadius: "50%",
-                      display: "inline-block",
-                      animation: "spin 0.8s linear infinite",
-                    }}
-                  />
-                  Signing in...
-                </>
-              ) : (
-                "Sign In →"
-              )}
+              {loading ? "Signing in..." : "Sign In →"}
             </button>
           </form>
 
-          {/* Divider */}
           <div
             style={{
               display: "flex",
@@ -571,36 +543,24 @@ export default function LoginPage() {
               textDecoration: "none",
               border: "1.5px solid #2D7A3A",
               background: "transparent",
-              transition: "all 0.15s",
             }}
-            onMouseEnter={(e) => (e.target.style.background = "#F0F7F0")}
-            onMouseLeave={(e) => (e.target.style.background = "transparent")}
           >
             Create a free account
           </a>
 
-          {/* Footer note */}
           <p
             style={{
               textAlign: "center",
               fontSize: 12,
               color: "#8A7560",
-              marginTop: 32,
+              marginTop: isMobile ? 20 : 32,
               lineHeight: 1.6,
             }}
           >
             Protected by industry-standard encryption.
-            <br />
-            Your farm data is private and secure.
           </p>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

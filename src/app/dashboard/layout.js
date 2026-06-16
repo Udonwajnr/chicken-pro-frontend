@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import api from "../../../lib/api";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 
 const C = {
   forestBg: "#0F1F14",
@@ -23,7 +24,6 @@ const C = {
   greenGlow: "#6FCF7F",
   greenFaint: "#1A3D22",
   gold: "#C9A84C",
-  goldLight: "#E8C76A",
   red: "#C0392B",
   redFaint: "rgba(192,57,43,0.15)",
   amber: "#D4860A",
@@ -50,11 +50,12 @@ const NAV_BOTTOM = [
   { label: "Settings", href: "/dashboard/settings", icon: "⚙️" },
 ];
 
-function SidebarItem({ item, active }) {
+function SidebarItem({ item, active, onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
     <Link
       href={item.href}
+      onClick={onClick}
       style={{
         display: "flex",
         alignItems: "center",
@@ -88,25 +89,22 @@ function SidebarItem({ item, active }) {
 }
 
 // ── Notification Bell ─────────────────────────
-function NotificationBell() {
+function NotificationBell({ isMobile }) {
   const [open, setOpen] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [vaccines, setVaccines] = useState([]);
+  const [dismissed, setDismissed] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const ref = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false);
-      }
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Fetch notifications when bell is clicked
   const fetchNotifications = async () => {
     if (loading) return;
     setLoading(true);
@@ -115,8 +113,8 @@ function NotificationBell() {
       const d = res.data.dashboard;
       setAlerts(d?.alerts || []);
       setVaccines(d?.upcomingVaccines || []);
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
+      setDismissed(new Set());
+    } catch {
     } finally {
       setLoading(false);
     }
@@ -128,43 +126,15 @@ function NotificationBell() {
     if (next) fetchNotifications();
   };
 
-  const total = alerts.length + vaccines.length;
+  const allItems = [
+    ...alerts.map((a, i) => ({ ...a, _type: "alert", _key: `a${i}` })),
+    ...vaccines.map((v, i) => ({ ...v, _type: "vaccine", _key: `v${i}` })),
+  ].filter((x) => !dismissed.has(x._key));
 
-  const getVaccineTiming = (v) => {
-    const isOverdue = !v.isDone && new Date(v.scheduledDate) < new Date();
-    if (isOverdue)
-      return {
-        label: "Overdue",
-        color: "#E88080",
-        bg: C.redFaint,
-        border: "#7B1F1F",
-      };
-    const days = v.daysUntil;
-    if (days === 0)
-      return {
-        label: "Today",
-        color: C.amberLight,
-        bg: C.amberFaint,
-        border: "#7A4A10",
-      };
-    if (days === 1)
-      return {
-        label: "Tomorrow",
-        color: C.amberLight,
-        bg: C.amberFaint,
-        border: "#7A4A10",
-      };
-    return {
-      label: `In ${days}d`,
-      color: C.textMuted,
-      bg: C.forestSurface2,
-      border: C.forestBorder,
-    };
-  };
+  const total = allItems.length;
 
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      {/* Bell button */}
       <button
         onClick={handleOpen}
         style={{
@@ -179,11 +149,9 @@ function NotificationBell() {
           cursor: "pointer",
           fontSize: 17,
           position: "relative",
-          transition: "all 0.15s",
         }}
       >
         🔔
-        {/* Badge */}
         {total > 0 && (
           <div
             style={{
@@ -209,23 +177,25 @@ function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div
           style={{
-            position: "absolute",
-            top: 46,
-            right: 0,
-            zIndex: 200,
-            width: 360,
+            position: "fixed",
+            top: isMobile ? 56 : 54,
+            right: isMobile ? 8 : 16,
+            left: isMobile ? 8 : "auto",
+            width: isMobile ? "auto" : 360,
+            maxHeight: "80vh",
+            zIndex: 300,
             background: C.forestSurface,
             border: `1px solid ${C.forestBorder}`,
             borderRadius: 14,
             overflow: "hidden",
-            boxShadow: "0 12px 36px rgba(0,0,0,0.4)",
+            boxShadow: "0 12px 36px rgba(0,0,0,0.5)",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
-          {/* Header */}
           <div
             style={{
               padding: "14px 18px",
@@ -247,7 +217,7 @@ function NotificationBell() {
                   ? "Refreshing..."
                   : total === 0
                     ? "All clear"
-                    : `${total} item${total > 1 ? "s" : ""} need attention`}
+                    : `${total} item${total > 1 ? "s" : ""}`}
               </div>
             </div>
             <button
@@ -264,302 +234,150 @@ function NotificationBell() {
                 fontFamily: "Inter, sans-serif",
               }}
             >
-              ↻ Refresh
+              ↻
             </button>
           </div>
 
-          {/* Content */}
-          <div style={{ maxHeight: 420, overflowY: "auto" }}>
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              maxHeight: isMobile ? "60vh" : 420,
+            }}
+          >
             {loading ? (
               <div
                 style={{
-                  padding: "32px",
+                  padding: 32,
                   textAlign: "center",
                   color: C.textMuted,
                   fontSize: 13,
                 }}
               >
+                Loading...
+              </div>
+            ) : allItems.length > 0 ? (
+              allItems.map((item) => {
+                const isAlert = item._type === "alert";
+                const isRed = isAlert && item.type === "HIGH_MORTALITY";
+                const isOverdue =
+                  !isAlert &&
+                  !item.isDone &&
+                  new Date(item.scheduledDate) < new Date();
+                const days = item.daysUntil;
+                return (
+                  <div
+                    key={item._key}
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      padding: "12px 18px",
+                      borderBottom: `1px solid ${C.forestBorder}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 34,
+                        height: 34,
+                        borderRadius: 8,
+                        flexShrink: 0,
+                        background: isAlert
+                          ? isRed
+                            ? C.redFaint
+                            : C.amberFaint
+                          : isOverdue
+                            ? C.redFaint
+                            : C.amberFaint,
+                        border: `1px solid ${isRed || isOverdue ? "#7B1F1F" : "#7A4A10"}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 16,
+                      }}
+                    >
+                      {isAlert ? (isRed ? "🚨" : "⚠️") : "💉"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: C.textPrimary,
+                          lineHeight: 1.4,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {isAlert ? item.message : item.vaccineName}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.textMuted }}>
+                        {isAlert
+                          ? "Health alert"
+                          : `${item.batchName} · ${new Date(item.scheduledDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setDismissed((p) => new Set([...p, item._key]))
+                      }
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                        background: "rgba(255,255,255,0.06)",
+                        border: "none",
+                        color: C.textMuted,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
                 <div
                   style={{
-                    width: 24,
-                    height: 24,
-                    margin: "0 auto 10px",
-                    border: `2px solid ${C.forestBorder}`,
-                    borderTopColor: C.greenGlow,
-                    borderRadius: "50%",
-                    animation: "spin 0.8s linear infinite",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: C.textPrimary,
                   }}
-                />
-                Loading notifications...
+                >
+                  All clear!
+                </div>
+                <div style={{ fontSize: 12, color: C.textMuted }}>
+                  No alerts or upcoming vaccines.
+                </div>
               </div>
-            ) : (
-              <>
-                {/* ── Health Alerts ── */}
-                {alerts.length > 0 && (
-                  <div>
-                    <div
-                      style={{
-                        padding: "10px 18px 6px",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: C.textMuted,
-                        textTransform: "uppercase",
-                        letterSpacing: 1.5,
-                      }}
-                    >
-                      🚨 Health Alerts
-                    </div>
-                    {alerts.map((a, i) => {
-                      const isRed = a.type === "HIGH_MORTALITY";
-                      return (
-                        <Link
-                          key={i}
-                          href={
-                            a.batchId
-                              ? `/dashboard/batches/${a.batchId}`
-                              : "/dashboard/health"
-                          }
-                          onClick={() => setOpen(false)}
-                          style={{
-                            display: "flex",
-                            alignItems: "flex-start",
-                            gap: 12,
-                            padding: "12px 18px",
-                            borderBottom: `1px solid ${C.forestBorder}`,
-                            textDecoration: "none",
-                            background: "transparent",
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background =
-                              C.forestSurface2)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
-                        >
-                          <div
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: 8,
-                              flexShrink: 0,
-                              background: isRed ? C.redFaint : C.amberFaint,
-                              border: `1px solid ${isRed ? "#7B1F1F" : "#7A4A10"}`,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 16,
-                            }}
-                          >
-                            {isRed ? "🚨" : "⚠️"}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: isRed ? "#F0A0A0" : C.amberLight,
-                                marginBottom: 2,
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              {a.message}
-                            </div>
-                            <div style={{ fontSize: 11, color: C.textMuted }}>
-                              {isRed
-                                ? "High mortality — act now"
-                                : "Check your health schedule"}
-                            </div>
-                          </div>
-                          <span
-                            style={{
-                              fontSize: 11,
-                              color: C.textMuted,
-                              flexShrink: 0,
-                            }}
-                          >
-                            →
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* ── Upcoming Vaccines ── */}
-                {vaccines.length > 0 && (
-                  <div>
-                    <div
-                      style={{
-                        padding: "10px 18px 6px",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: C.textMuted,
-                        textTransform: "uppercase",
-                        letterSpacing: 1.5,
-                      }}
-                    >
-                      💉 Upcoming Vaccinations
-                    </div>
-                    {vaccines.map((v, i) => {
-                      const timing = getVaccineTiming(v);
-                      return (
-                        <Link
-                          key={i}
-                          href={
-                            v.batchId
-                              ? `/dashboard/batches/${v.batchId}`
-                              : "/dashboard/health"
-                          }
-                          onClick={() => setOpen(false)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                            padding: "12px 18px",
-                            borderBottom:
-                              i < vaccines.length - 1
-                                ? `1px solid ${C.forestBorder}`
-                                : "none",
-                            textDecoration: "none",
-                            background: "transparent",
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) =>
-                            (e.currentTarget.style.background =
-                              C.forestSurface2)
-                          }
-                          onMouseLeave={(e) =>
-                            (e.currentTarget.style.background = "transparent")
-                          }
-                        >
-                          <div
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: 8,
-                              flexShrink: 0,
-                              background: timing.bg,
-                              border: `1px solid ${timing.border}`,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 16,
-                            }}
-                          >
-                            💉
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 600,
-                                color: C.textPrimary,
-                                marginBottom: 2,
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                            >
-                              {v.vaccineName}
-                            </div>
-                            <div style={{ fontSize: 11, color: C.textMuted }}>
-                              {v.batchName}
-                              {" · "}
-                              {new Date(v.scheduledDate).toLocaleDateString(
-                                "en-GB",
-                                { day: "numeric", month: "short" },
-                              )}
-                            </div>
-                          </div>
-                          <span
-                            style={{
-                              padding: "3px 9px",
-                              borderRadius: 100,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              background: timing.bg,
-                              color: timing.color,
-                              border: `1px solid ${timing.border}`,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {timing.label}
-                          </span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* All clear */}
-                {!loading && alerts.length === 0 && vaccines.length === 0 && (
-                  <div style={{ padding: "40px 20px", textAlign: "center" }}>
-                    <div style={{ fontSize: 36, marginBottom: 10 }}>✅</div>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: C.textPrimary,
-                        marginBottom: 4,
-                      }}
-                    >
-                      All clear!
-                    </div>
-                    <div style={{ fontSize: 12, color: C.textMuted }}>
-                      No health alerts or upcoming vaccines right now.
-                    </div>
-                  </div>
-                )}
-              </>
             )}
           </div>
 
-          {/* Footer */}
           <div
             style={{
-              padding: "12px 18px",
+              padding: "10px 18px",
               borderTop: `1px solid ${C.forestBorder}`,
               background: C.forestSurface2,
-              display: "flex",
-              gap: 10,
+              textAlign: "center",
             }}
           >
             <Link
               href="/dashboard/health"
               onClick={() => setOpen(false)}
               style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "8px 0",
-                borderRadius: 7,
                 fontSize: 12,
                 fontWeight: 600,
                 color: C.greenGlow,
                 textDecoration: "none",
-                border: `1px solid ${C.forestBorder}`,
-                background: "transparent",
               }}
             >
-              View Health Page
-            </Link>
-            <Link
-              href="/dashboard"
-              onClick={() => setOpen(false)}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                padding: "8px 0",
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#fff",
-                textDecoration: "none",
-                background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
-              }}
-            >
-              Go to Dashboard
+              View Health Page →
             </Link>
           </div>
         </div>
@@ -575,6 +393,8 @@ function DashboardLayoutInner({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const isActive = (href) =>
@@ -585,6 +405,13 @@ function DashboardLayoutInner({ children }) {
   const currentPage =
     [...NAV, ...NAV_BOTTOM].find((n) => isActive(n.href))?.label || "Dashboard";
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  const sidebarWidth = isMobile ? 260 : 240;
+
   return (
     <div
       style={{
@@ -593,10 +420,24 @@ function DashboardLayoutInner({ children }) {
         fontFamily: "Inter, sans-serif",
       }}
     >
+      {/* ══ MOBILE OVERLAY ══ */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 60,
+            background: "rgba(0,0,0,0.6)",
+            backdropFilter: "blur(4px)",
+          }}
+        />
+      )}
+
       {/* ══ SIDEBAR ══ */}
       <aside
         style={{
-          width: 240,
+          width: sidebarWidth,
           flexShrink: 0,
           background: C.creamBg,
           borderRight: `1px solid ${C.creamBorder}`,
@@ -606,15 +447,24 @@ function DashboardLayoutInner({ children }) {
           top: 0,
           left: 0,
           bottom: 0,
-          zIndex: 50,
+          zIndex: 70,
           overflowY: "auto",
+          transform: isMobile
+            ? sidebarOpen
+              ? "translateX(0)"
+              : `translateX(-${sidebarWidth}px)`
+            : "translateX(0)",
+          transition: "transform 0.3s ease",
         }}
       >
-        {/* Logo */}
+        {/* Logo row */}
         <div
           style={{
-            padding: "20px 20px 16px",
+            padding: "16px 16px 12px",
             borderBottom: `1px solid ${C.creamBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
           <Link
@@ -628,14 +478,14 @@ function DashboardLayoutInner({ children }) {
           >
             <div
               style={{
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
                 background: `linear-gradient(135deg, ${C.green}, #4CAF5C)`,
-                borderRadius: 9,
+                borderRadius: 8,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 18,
+                fontSize: 16,
               }}
             >
               🐔
@@ -643,7 +493,7 @@ function DashboardLayoutInner({ children }) {
             <span
               style={{
                 fontFamily: "Playfair Display, Georgia, serif",
-                fontSize: 19,
+                fontSize: 18,
                 fontWeight: 700,
                 color: C.creamText,
               }}
@@ -651,36 +501,50 @@ function DashboardLayoutInner({ children }) {
               Chicken<span style={{ color: C.green }}>Pro</span>
             </span>
           </Link>
+          {/* Close button on mobile */}
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 7,
+                background: C.creamSurface,
+                border: `1px solid ${C.creamBorder}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 16,
+                color: C.creamMuted,
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Farm info */}
-        <div style={{ padding: "14px 16px 10px" }}>
+        <div style={{ padding: "12px 12px 8px" }}>
           <div
             style={{
-              padding: "10px 12px",
+              padding: "8px 10px",
               background: C.creamSurface,
               border: `1px solid ${C.creamBorder}`,
-              borderRadius: 9,
+              borderRadius: 8,
             }}
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: C.creamText,
-                marginBottom: 1,
-              }}
-            >
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.creamText }}>
               {user?.name || "Your Farm"}
             </div>
-            <div style={{ fontSize: 11, color: C.creamMuted }}>
+            <div style={{ fontSize: 10, color: C.creamMuted }}>
               📍 {user?.location || "Nigeria"}
             </div>
           </div>
         </div>
 
-        {/* Main Nav */}
-        <nav style={{ padding: "8px 12px", flex: 1 }}>
+        {/* Nav */}
+        <nav style={{ padding: "6px 10px", flex: 1 }}>
           <div
             style={{
               fontSize: 9,
@@ -688,7 +552,7 @@ function DashboardLayoutInner({ children }) {
               letterSpacing: 2,
               color: C.creamMuted,
               textTransform: "uppercase",
-              padding: "0 4px 8px",
+              padding: "0 4px 6px",
             }}
           >
             Farm Tools
@@ -698,13 +562,12 @@ function DashboardLayoutInner({ children }) {
               key={item.href}
               item={item}
               active={isActive(item.href)}
+              onClick={() => isMobile && setSidebarOpen(false)}
             />
           ))}
-
           <div
-            style={{ height: 1, background: C.creamBorder, margin: "14px 4px" }}
+            style={{ height: 1, background: C.creamBorder, margin: "12px 4px" }}
           />
-
           <div
             style={{
               fontSize: 9,
@@ -712,7 +575,7 @@ function DashboardLayoutInner({ children }) {
               letterSpacing: 2,
               color: C.creamMuted,
               textTransform: "uppercase",
-              padding: "0 4px 8px",
+              padding: "0 4px 6px",
             }}
           >
             More
@@ -722,29 +585,29 @@ function DashboardLayoutInner({ children }) {
               key={item.href}
               item={item}
               active={isActive(item.href)}
+              onClick={() => isMobile && setSidebarOpen(false)}
             />
           ))}
         </nav>
 
-        {/* User section */}
+        {/* User */}
         <div
           style={{
-            padding: "12px 16px",
+            padding: "10px 12px",
             borderTop: `1px solid ${C.creamBorder}`,
+            position: "relative",
           }}
         >
           <div
+            onClick={() => setMenuOpen((p) => !p)}
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
-              padding: "10px 12px",
-              borderRadius: 9,
+              gap: 8,
+              padding: "8px 10px",
+              borderRadius: 8,
               cursor: "pointer",
-              transition: "all 0.15s",
-              position: "relative",
             }}
-            onClick={() => setMenuOpen((p) => !p)}
             onMouseEnter={(e) =>
               (e.currentTarget.style.background = C.creamHover)
             }
@@ -754,14 +617,14 @@ function DashboardLayoutInner({ children }) {
           >
             <div
               style={{
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
                 borderRadius: "50%",
                 background: `linear-gradient(135deg, ${C.green}, ${C.gold})`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "#fff",
                 flexShrink: 0,
@@ -777,107 +640,102 @@ function DashboardLayoutInner({ children }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 12,
                   fontWeight: 600,
                   color: C.creamText,
-                  whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {user?.name}
               </div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   color: C.creamMuted,
-                  whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
                 {user?.email}
               </div>
             </div>
-            <span style={{ fontSize: 12, color: C.creamMuted }}>⌄</span>
+            <span style={{ fontSize: 11, color: C.creamMuted }}>⌄</span>
           </div>
 
-          {/* Dropdown */}
           {menuOpen && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 80,
-                left: 16,
-                right: 16,
-                background: "#fff",
-                border: `1px solid ${C.creamBorder}`,
-                borderRadius: 10,
-                overflow: "hidden",
-                boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                zIndex: 100,
-              }}
-            >
-              {[
-                { label: "⚙️ Settings", href: "/dashboard/settings" },
-                { label: "👤 Profile", href: "/dashboard/settings" },
-                { label: "🏪 Marketplace", href: "/marketplace" },
-              ].map((item) => (
-                <Link
-                  key={item.href + item.label}
-                  href={item.href}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "12px 16px",
-                    fontSize: 13,
-                    color: C.creamText,
-                    textDecoration: "none",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = C.creamSurface)
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-              <div style={{ height: 1, background: C.creamBorder }} />
-              <button
-                onClick={() => {
-                  setMenuOpen(false);
-                  logout();
-                }}
+            <>
+              <div
+                style={{ position: "fixed", inset: 0, zIndex: 99 }}
+                onClick={() => setMenuOpen(false)}
+              />
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  width: "100%",
-                  padding: "12px 16px",
-                  fontSize: 13,
-                  color: "#C0392B",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "Inter, sans-serif",
-                  transition: "all 0.15s",
-                  textAlign: "left",
+                  position: "absolute",
+                  bottom: 60,
+                  left: 8,
+                  right: 8,
+                  zIndex: 100,
+                  background: "#fff",
+                  border: `1px solid ${C.creamBorder}`,
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#FFF0F0")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "transparent")
-                }
               >
-                🚪 Sign Out
-              </button>
-            </div>
+                {[
+                  { label: "⚙️ Settings", href: "/dashboard/settings" },
+                  { label: "🏪 Marketplace", href: "/marketplace" },
+                ].map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      isMobile && setSidebarOpen(false);
+                    }}
+                    style={{
+                      display: "block",
+                      padding: "11px 14px",
+                      fontSize: 13,
+                      color: C.creamText,
+                      textDecoration: "none",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = C.creamSurface)
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <div style={{ height: 1, background: C.creamBorder }} />
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    logout();
+                  }}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "11px 14px",
+                    fontSize: 13,
+                    color: "#C0392B",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "Inter, sans-serif",
+                    textAlign: "left",
+                  }}
+                >
+                  🚪 Sign Out
+                </button>
+              </div>
+            </>
           )}
         </div>
       </aside>
@@ -887,9 +745,9 @@ function DashboardLayoutInner({ children }) {
         style={{
           position: "fixed",
           top: 0,
-          left: 240,
+          left: isMobile ? 0 : sidebarWidth,
           right: 0,
-          height: 60,
+          height: isMobile ? 54 : 60,
           zIndex: 40,
           background: "rgba(15,31,20,0.97)",
           backdropFilter: "blur(12px)",
@@ -897,74 +755,89 @@ function DashboardLayoutInner({ children }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 28px",
+          padding: isMobile ? "0 12px" : "0 28px",
         }}
       >
-        {/* Breadcrumb */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            fontSize: 13,
-            color: C.textMuted,
-          }}
-        >
-          <span style={{ color: C.textMuted }}>ChickenPro</span>
-          <span style={{ color: C.forestBorder }}>›</span>
-          <span style={{ color: C.textPrimary, fontWeight: 500 }}>
-            {currentPage}
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Hamburger (mobile only) */}
+          {isMobile && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: C.forestSurface2,
+                border: `1px solid ${C.forestBorder}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                fontSize: 18,
+                color: C.textPrimary,
+              }}
+            >
+              ☰
+            </button>
+          )}
+          <div style={{ fontSize: 13, color: C.textMuted }}>
+            {isMobile ? (
+              <span style={{ color: C.textPrimary, fontWeight: 600 }}>
+                {currentPage}
+              </span>
+            ) : (
+              <>
+                <span>ChickenPro</span>
+                <span style={{ margin: "0 6px", color: C.forestBorder }}>
+                  ›
+                </span>
+                <span style={{ color: C.textPrimary, fontWeight: 500 }}>
+                  {currentPage}
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* Right actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {/* Notification Bell */}
-          <NotificationBell />
-
-          {/* New Batch CTA */}
-          <Link
-            href="/dashboard/batches/new"
-            style={{
-              padding: "8px 16px",
-              borderRadius: 7,
-              fontSize: 12,
-              fontWeight: 700,
-              background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
-              color: "#fff",
-              textDecoration: "none",
-              boxShadow: "0 3px 10px rgba(45,122,58,0.3)",
-            }}
-          >
-            + New Batch
-          </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <NotificationBell isMobile={isMobile} />
+          {!isMobile && (
+            <Link
+              href="/dashboard/batches/new"
+              style={{
+                padding: "8px 16px",
+                borderRadius: 7,
+                fontSize: 12,
+                fontWeight: 700,
+                background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
+                color: "#fff",
+                textDecoration: "none",
+                boxShadow: "0 3px 10px rgba(45,122,58,0.3)",
+              }}
+            >
+              + New Batch
+            </Link>
+          )}
         </div>
       </div>
 
-      {/* ══ MAIN CONTENT ══ */}
+      {/* ══ MAIN ══ */}
       <main
         style={{
-          marginLeft: 240,
-          marginTop: 60,
+          marginLeft: isMobile ? 0 : sidebarWidth,
+          marginTop: isMobile ? 54 : 60,
           flex: 1,
           background: C.forestBg,
-          minHeight: "calc(100vh - 60px)",
+          minHeight: isMobile ? "calc(100vh - 54px)" : "calc(100vh - 60px)",
+          padding: isMobile ? "0" : undefined,
         }}
       >
-        {children}
+        <div style={{ padding: isMobile ? "16px 14px" : undefined }}>
+          {children}
+        </div>
       </main>
 
-      {/* Close sidebar menu on outside click */}
-      {menuOpen && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 30 }}
-          onClick={() => setMenuOpen(false)}
-        />
-      )}
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

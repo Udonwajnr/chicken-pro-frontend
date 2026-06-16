@@ -6,6 +6,18 @@ import api from '../../../../lib/api';
 
 import toast from 'react-hot-toast';
 
+function useIsMobile() {
+  const [m, setM] = useState(false);
+  useEffect(() => {
+    const c = () => setM(window.innerWidth < 768);
+    c();
+    window.addEventListener('resize', c);
+    return () => window.removeEventListener('resize', c);
+  }, []);
+  return m;
+}
+
+
 const C = {
   forestBg:       '#0F1F14',
   forestSurface:  '#162B1C',
@@ -183,7 +195,7 @@ export default function BatchListPage() {
   const [search,     setSearch]     = useState('');
   const [deleting,   setDeleting]   = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
-
+const isMobile = useIsMobile();
   useEffect(() => { fetchBatches(); }, []);
 
   const fetchBatches = async () => {
@@ -224,7 +236,7 @@ export default function BatchListPage() {
   };
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: isMobile ? '16px 14px' : '28px 32px', maxWidth: 1200, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 28 }}>

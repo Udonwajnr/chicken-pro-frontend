@@ -1,10 +1,20 @@
 "use client";
-
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "../../../lib/api";
 import toast from "react-hot-toast";
+
+function useIsMobile() {
+  const [m, s] = useState(false);
+  useEffect(() => {
+    const c = () => s(window.innerWidth < 768);
+    c();
+    window.addEventListener("resize", c);
+    return () => window.removeEventListener("resize", c);
+  }, []);
+  return m;
+}
 
 const C = {
   creamBg: "#FAF7F2",
@@ -12,66 +22,51 @@ const C = {
   creamBorder: "#E8DFD0",
   creamText: "#2C2416",
   creamMuted: "#8A7560",
-  creamHover: "#EDE5D8",
   green: "#2D7A3A",
   greenLight: "#3D9E4D",
   greenGlow: "#6FCF7F",
   greenFaint: "#1A3D22",
   gold: "#C9A84C",
   goldLight: "#E8C76A",
-  textMuted: "#5A6B5E",
 };
-
-const CATEGORIES = [
+const fmt = (n) => (n != null ? `₦${Number(n).toLocaleString()}` : "₦0");
+const CATS = [
   {
     key: "live_birds",
     label: "Live Birds",
     emoji: "🐔",
-    desc: "Broilers, layers, cockerels",
+    desc: "Broilers, layers",
   },
-  {
-    key: "day_old_chicks",
-    label: "Day-old Chicks",
-    emoji: "🐣",
-    desc: "From registered hatcheries",
-  },
-  { key: "eggs", label: "Eggs", emoji: "🥚", desc: "Crates and bulk orders" },
-  {
-    key: "feed",
-    label: "Feed & Nutrition",
-    emoji: "🌾",
-    desc: "Starter, grower, finisher",
-  },
-  {
-    key: "medication",
-    label: "Medication",
-    emoji: "💊",
-    desc: "Vaccines and treatments",
-  },
-  {
-    key: "equipment",
-    label: "Equipment",
-    emoji: "🏠",
-    desc: "Feeders, drinkers, cages",
-  },
+  { key: "day_old_chicks", label: "Chicks", emoji: "🐣", desc: "Hatcheries" },
+  { key: "eggs", label: "Eggs", emoji: "🥚", desc: "Crates & bulk" },
+  { key: "feed", label: "Feed", emoji: "🌾", desc: "All phases" },
+  { key: "medication", label: "Meds", emoji: "💊", desc: "Vaccines" },
+  { key: "equipment", label: "Equipment", emoji: "🏠", desc: "Feeders" },
   {
     key: "raw_materials",
     label: "Raw Materials",
     emoji: "🌽",
-    desc: "Maize, soya, ingredients",
+    desc: "Maize, soya",
   },
 ];
+const EMOJI = {
+  live_birds: "🐔",
+  day_old_chicks: "🐣",
+  eggs: "🥚",
+  feed: "🌾",
+  medication: "💊",
+  equipment: "🏠",
+  raw_materials: "🌽",
+};
 
-const fmt = (n) => (n != null ? `₦${Number(n).toLocaleString()}` : "₦0");
-
-function Skeleton({ h = 20, w = "100%", radius = 6 }) {
+function Skeleton({ h = 20, w = "100%" }) {
   return (
     <div
       style={{
         height: h,
         width: w,
-        borderRadius: radius,
-        background: `linear-gradient(90deg, ${C.creamSurface} 25%, ${C.creamBorder} 50%, ${C.creamSurface} 75%)`,
+        borderRadius: 6,
+        background: `linear-gradient(90deg,${C.creamSurface} 25%,${C.creamBorder} 50%,${C.creamSurface} 75%)`,
         backgroundSize: "200% 100%",
         animation: "shimmer 1.4s infinite",
       }}
@@ -79,89 +74,55 @@ function Skeleton({ h = 20, w = "100%", radius = 6 }) {
   );
 }
 
-function ProductCard({ product }) {
-  const [hovered, setHovered] = useState(false);
-
-  const categoryEmoji =
-    {
-      live_birds: "🐔",
-      day_old_chicks: "🐣",
-      eggs: "🥚",
-      feed: "🌾",
-      medication: "💊",
-      equipment: "🏠",
-      raw_materials: "🌽",
-    }[product.category] || "📦";
-
+function ProductCard({ product, isMobile }) {
+  const [h, sH] = useState(false);
+  const ce = EMOJI[product.category] || "📦";
   return (
     <Link
       href={`/marketplace/products/${product._id}`}
       style={{ textDecoration: "none" }}
     >
       <div
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => sH(true)}
+        onMouseLeave={() => sH(false)}
         style={{
           background: "#fff",
-          border: `1px solid ${hovered ? C.green : C.creamBorder}`,
+          border: `1px solid ${h ? C.green : C.creamBorder}`,
           borderRadius: 14,
           overflow: "hidden",
           transition: "all 0.2s",
-          transform: hovered ? "translateY(-3px)" : "translateY(0)",
-          boxShadow: hovered
+          transform: h ? "translateY(-3px)" : "none",
+          boxShadow: h
             ? "0 8px 24px rgba(45,122,58,0.12)"
             : "0 1px 4px rgba(0,0,0,0.06)",
-          cursor: "pointer",
         }}
       >
-        {/* Product image / placeholder */}
         <div
           style={{
-            height: 180,
-            background: product.photos?.[0]
-              ? `url(${product.photos[0]}) center/cover no-repeat`
-              : `linear-gradient(135deg, ${C.creamSurface}, ${C.creamBorder})`,
-            position: "relative",
+            height: isMobile ? 130 : 180,
+            background: `linear-gradient(135deg,${C.creamSurface},${C.creamBorder})`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            position: "relative",
           }}
         >
-          {!product.photos?.[0] && (
-            <span style={{ fontSize: 52 }}>{categoryEmoji}</span>
-          )}
+          <span style={{ fontSize: isMobile ? 36 : 52 }}>{ce}</span>
           {product.isFeatured && (
             <div
               style={{
                 position: "absolute",
-                top: 10,
-                left: 10,
-                background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})`,
+                top: 8,
+                left: 8,
+                background: `linear-gradient(135deg,${C.gold},${C.goldLight})`,
                 color: "#fff",
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 700,
-                padding: "3px 10px",
+                padding: "2px 8px",
                 borderRadius: 100,
               }}
             >
               ★ Featured
-            </div>
-          )}
-          {product.quantity < 10 && product.quantity > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                background: "rgba(192,57,43,0.9)",
-                color: "#fff",
-                fontSize: 10,
-                fontWeight: 700,
-                padding: "3px 10px",
-                borderRadius: 100,
-              }}
-            >
-              Only {product.quantity} left
             </div>
           )}
           {product.quantity === 0 && (
@@ -178,10 +139,10 @@ function ProductCard({ product }) {
               <span
                 style={{
                   color: "#fff",
-                  fontSize: 14,
+                  fontSize: 11,
                   fontWeight: 700,
                   background: "rgba(0,0,0,0.5)",
-                  padding: "6px 14px",
+                  padding: "4px 10px",
                   borderRadius: 8,
                 }}
               >
@@ -189,61 +150,65 @@ function ProductCard({ product }) {
               </span>
             </div>
           )}
+          {product.quantity > 0 && product.quantity < 10 && (
+            <div
+              style={{
+                position: "absolute",
+                top: 8,
+                right: 8,
+                background: "rgba(192,57,43,0.9)",
+                color: "#fff",
+                fontSize: 9,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 100,
+              }}
+            >
+              Only {product.quantity}
+            </div>
+          )}
         </div>
-
-        {/* Card body */}
-        <div style={{ padding: "14px 16px" }}>
+        <div style={{ padding: isMobile ? "10px 12px" : "14px 16px" }}>
           <div
             style={{
-              fontSize: 14,
+              fontSize: isMobile ? 12 : 14,
               fontWeight: 700,
               color: C.creamText,
-              marginBottom: 4,
+              marginBottom: 3,
               lineHeight: 1.3,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
             {product.name}
           </div>
-          <div style={{ fontSize: 11, color: C.creamMuted, marginBottom: 10 }}>
+          <div
+            style={{
+              fontSize: 10,
+              color: C.creamMuted,
+              marginBottom: 6,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {product.storeId?.name} · 📍{" "}
             {product.storeId?.location || "Nigeria"}
           </div>
-
-          {/* Rating */}
           {product.storeId?.rating > 0 && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 8,
-              }}
-            >
-              <span style={{ color: C.gold, fontSize: 11 }}>
+            <div style={{ marginBottom: 6 }}>
+              <span style={{ color: C.gold, fontSize: 10 }}>
                 {"★".repeat(Math.round(product.storeId.rating))}
               </span>
-              <span style={{ fontSize: 11, color: C.creamMuted }}>
+              <span
+                style={{ fontSize: 10, color: C.creamMuted, marginLeft: 4 }}
+              >
                 {product.storeId.rating}
               </span>
-              {product.storeId.isVerified && (
-                <span
-                  style={{
-                    marginLeft: 4,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: C.green,
-                    background: `${C.green}15`,
-                    padding: "1px 7px",
-                    borderRadius: 100,
-                    border: `1px solid ${C.green}`,
-                  }}
-                >
-                  ✓ Verified
-                </span>
-              )}
             </div>
           )}
-
           <div
             style={{
               display: "flex",
@@ -252,27 +217,30 @@ function ProductCard({ product }) {
             }}
           >
             <div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>
+              <div
+                style={{
+                  fontSize: isMobile ? 14 : 18,
+                  fontWeight: 800,
+                  color: C.green,
+                }}
+              >
                 {fmt(product.price)}
               </div>
-              <div style={{ fontSize: 10, color: C.creamMuted }}>
+              <div style={{ fontSize: 9, color: C.creamMuted }}>
                 {product.unit}
               </div>
             </div>
             <div
               style={{
-                padding: "7px 14px",
-                borderRadius: 8,
-                background:
-                  product.quantity === 0
-                    ? C.creamSurface
-                    : `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
-                color: product.quantity === 0 ? C.creamMuted : "#fff",
-                fontSize: 12,
+                padding: isMobile ? "4px 8px" : "5px 10px",
+                borderRadius: 7,
+                background: `linear-gradient(135deg,${C.green},${C.greenLight})`,
+                color: "#fff",
+                fontSize: 11,
                 fontWeight: 700,
               }}
             >
-              {product.quantity === 0 ? "Sold Out" : "View →"}
+              View
             </div>
           </div>
         </div>
@@ -282,9 +250,9 @@ function ProductCard({ product }) {
 }
 
 function MarketplaceContent() {
-  const searchParams = useSearchParams();
+  const sp = useSearchParams();
   const router = useRouter();
-
+  const isMobile = useIsMobile();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -292,48 +260,45 @@ function MarketplaceContent() {
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState("newest");
   const [priceRange, setPriceRange] = useState({ min: "", max: "" });
-
-  const category = searchParams.get("category") || "";
-  const search = searchParams.get("search") || "";
+  const category = sp.get("category") || "";
+  const search = sp.get("search") || "";
 
   useEffect(() => {
     fetchProducts();
   }, [category, search, page, sortBy]);
-
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (category) params.set("category", category);
-      if (search) params.set("search", search);
-      if (priceRange.min) params.set("minPrice", priceRange.min);
-      if (priceRange.max) params.set("maxPrice", priceRange.max);
-      params.set("page", page);
-      params.set("limit", 20);
-
-      const res = await api.get(`/products?${params}`);
+      const p = new URLSearchParams();
+      if (category) p.set("category", category);
+      if (search) p.set("search", search);
+      if (priceRange.min) p.set("minPrice", priceRange.min);
+      if (priceRange.max) p.set("maxPrice", priceRange.max);
+      p.set("page", page);
+      p.set("limit", 20);
+      const res = await api.get(`/products?${p}`);
       setProducts(res.data.products || []);
       setTotalPages(res.data.pages || 1);
       setTotal(res.data.total || 0);
     } catch {
-      toast.error("Failed to load products");
+      toast.error("Failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const currentCat = CATEGORIES.find((c) => c.key === category);
+  const curCat = CATS.find((c) => c.key === category);
 
   return (
     <div>
-      {/* ── Hero Banner (only on home) ── */}
+      {/* Hero */}
       {!category && !search && (
         <div
           style={{
-            background: `linear-gradient(135deg, #1A3D22, #0F1F14)`,
-            borderRadius: 16,
-            padding: "40px 48px",
-            marginBottom: 28,
+            background: "linear-gradient(135deg,#1A3D22,#0F1F14)",
+            borderRadius: isMobile ? 12 : 16,
+            padding: isMobile ? "24px 18px" : "40px 48px",
+            marginBottom: isMobile ? 16 : 28,
             position: "relative",
             overflow: "hidden",
           }}
@@ -343,7 +308,7 @@ function MarketplaceContent() {
               position: "absolute",
               right: -20,
               top: -20,
-              fontSize: 160,
+              fontSize: isMobile ? 100 : 160,
               opacity: 0.06,
             }}
           >
@@ -353,87 +318,86 @@ function MarketplaceContent() {
             <div
               style={{
                 display: "inline-block",
-                padding: "4px 14px",
+                padding: "4px 12px",
                 borderRadius: 100,
                 background: "rgba(45,122,58,0.3)",
                 border: "1px solid #2D7A3A",
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 700,
-                color: C.greenGlow,
+                color: "#6FCF7F",
                 letterSpacing: 1,
                 textTransform: "uppercase",
-                marginBottom: 16,
+                marginBottom: 12,
               }}
             >
               Nigeria's Poultry Marketplace
             </div>
             <div
               style={{
-                fontFamily: "Playfair Display, Georgia, serif",
-                fontSize: 32,
+                fontFamily: "Playfair Display,Georgia,serif",
+                fontSize: isMobile ? 22 : 32,
                 fontWeight: 800,
                 color: "#FAF7F2",
-                marginBottom: 10,
+                marginBottom: 8,
               }}
             >
               Buy & Sell Poultry Products
             </div>
             <div
               style={{
-                fontSize: 15,
+                fontSize: isMobile ? 13 : 15,
                 color: "rgba(240,235,224,0.7)",
                 maxWidth: 480,
                 lineHeight: 1.7,
-                marginBottom: 24,
+                marginBottom: isMobile ? 16 : 24,
               }}
             >
-              Connect directly with verified poultry farmers across Nigeria.
-              Escrow payments protect every transaction.
+              Connect with verified farmers. Escrow payments protect every
+              transaction.
             </div>
-            <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Link
                 href="/marketplace/store"
                 style={{
-                  padding: "12px 24px",
+                  padding: isMobile ? "10px 18px" : "12px 24px",
                   borderRadius: 9,
-                  fontSize: 14,
+                  fontSize: isMobile ? 12 : 14,
                   fontWeight: 700,
-                  background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
+                  background: `linear-gradient(135deg,${C.green},${C.greenLight})`,
                   color: "#fff",
                   textDecoration: "none",
-                  boxShadow: "0 4px 14px rgba(45,122,58,0.4)",
                 }}
               >
-                🏪 Open Your Store
+                🏪 Open Store
               </Link>
               <a
                 href="#products"
                 style={{
-                  padding: "12px 24px",
+                  padding: isMobile ? "10px 18px" : "12px 24px",
                   borderRadius: 9,
-                  fontSize: 14,
+                  fontSize: isMobile ? 12 : 14,
                   fontWeight: 600,
-                  color: C.greenGlow,
+                  color: "#6FCF7F",
                   textDecoration: "none",
                   border: "1.5px solid rgba(111,207,127,0.4)",
                 }}
               >
-                Browse Products ↓
+                Browse ↓
               </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Category Cards (home only) ── */}
+      {/* Categories */}
       {!category && !search && (
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: isMobile ? 16 : 32 }}>
           <div
             style={{
-              fontSize: 16,
+              fontSize: isMobile ? 14 : 16,
               fontWeight: 700,
               color: C.creamText,
-              marginBottom: 14,
+              marginBottom: 12,
             }}
           >
             Browse by Category
@@ -441,11 +405,11 @@ function MarketplaceContent() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(7, 1fr)",
-              gap: 10,
+              gridTemplateColumns: isMobile ? "repeat(3,1fr)" : "repeat(7,1fr)",
+              gap: isMobile ? 8 : 10,
             }}
           >
-            {CATEGORIES.filter((c) => c.key).map((cat) => (
+            {CATS.map((cat) => (
               <Link
                 key={cat.key}
                 href={`/marketplace?category=${cat.key}`}
@@ -456,36 +420,29 @@ function MarketplaceContent() {
                     background: "#fff",
                     border: `1px solid ${C.creamBorder}`,
                     borderRadius: 12,
-                    padding: "14px 10px",
+                    padding: isMobile ? "10px 6px" : "14px 10px",
                     textAlign: "center",
-                    transition: "all 0.2s",
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = C.green;
-                    e.currentTarget.style.background = "#F0F7F0";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = C.creamBorder;
-                    e.currentTarget.style.background = "#fff";
                   }}
                 >
-                  <div style={{ fontSize: 28, marginBottom: 6 }}>
+                  <div
+                    style={{ fontSize: isMobile ? 22 : 28, marginBottom: 4 }}
+                  >
                     {cat.emoji}
                   </div>
                   <div
                     style={{
-                      fontSize: 11,
+                      fontSize: isMobile ? 10 : 11,
                       fontWeight: 600,
                       color: C.creamText,
-                      marginBottom: 2,
                     }}
                   >
                     {cat.label}
                   </div>
-                  <div style={{ fontSize: 10, color: C.creamMuted }}>
-                    {cat.desc}
-                  </div>
+                  {!isMobile && (
+                    <div style={{ fontSize: 9, color: C.creamMuted }}>
+                      {cat.desc}
+                    </div>
+                  )}
                 </div>
               </Link>
             ))}
@@ -493,126 +450,133 @@ function MarketplaceContent() {
         </div>
       )}
 
-      {/* ── Products Section ── */}
+      {/* Products */}
       <div id="products">
-        {/* Section header */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 18,
+            marginBottom: 14,
             flexWrap: "wrap",
-            gap: 12,
+            gap: 10,
           }}
         >
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: C.creamText }}>
+            <div
+              style={{
+                fontSize: isMobile ? 14 : 16,
+                fontWeight: 700,
+                color: C.creamText,
+              }}
+            >
               {search
-                ? `Results for "${search}"`
-                : currentCat
-                  ? `${currentCat.emoji} ${currentCat.label}`
+                ? `"${search}"`
+                : curCat
+                  ? `${curCat.emoji} ${curCat.label}`
                   : "All Products"}
             </div>
-            <div style={{ fontSize: 12, color: C.creamMuted, marginTop: 2 }}>
-              {loading ? "Loading..." : `${total} products found`}
+            <div style={{ fontSize: 11, color: C.creamMuted }}>
+              {loading ? "Loading..." : total + " products"}
             </div>
           </div>
-
-          {/* Sort + Filter */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+          <div
+            style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            {!isMobile && (
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                style={{
+                  padding: "7px 10px",
+                  borderRadius: 8,
+                  fontSize: 11,
+                  background: "#fff",
+                  border: `1px solid ${C.creamBorder}`,
+                  color: C.creamText,
+                  cursor: "pointer",
+                  fontFamily: "Inter,sans-serif",
+                  outline: "none",
+                }}
+              >
+                <option value="newest">Newest</option>
+                <option value="price_low">Price ↑</option>
+                <option value="price_high">Price ↓</option>
+                <option value="featured">Featured</option>
+              </select>
+            )}
+            <input
+              type="number"
+              placeholder="Min ₦"
+              value={priceRange.min}
+              onChange={(e) =>
+                setPriceRange((p) => ({ ...p, min: e.target.value }))
+              }
               style={{
-                padding: "8px 12px",
+                width: isMobile ? 55 : 80,
+                padding: "7px 8px",
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 11,
                 background: "#fff",
                 border: `1px solid ${C.creamBorder}`,
                 color: C.creamText,
-                cursor: "pointer",
-                fontFamily: "Inter, sans-serif",
                 outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <span style={{ fontSize: 11, color: C.creamMuted }}>–</span>
+            <input
+              type="number"
+              placeholder="Max ₦"
+              value={priceRange.max}
+              onChange={(e) =>
+                setPriceRange((p) => ({ ...p, max: e.target.value }))
+              }
+              style={{
+                width: isMobile ? 55 : 80,
+                padding: "7px 8px",
+                borderRadius: 8,
+                fontSize: 11,
+                background: "#fff",
+                border: `1px solid ${C.creamBorder}`,
+                color: C.creamText,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              onClick={fetchProducts}
+              style={{
+                padding: "7px 12px",
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 600,
+                background: C.green,
+                color: "#fff",
+                border: "none",
+                cursor: "pointer",
+                fontFamily: "Inter,sans-serif",
               }}
             >
-              <option value="newest">Newest First</option>
-              <option value="price_low">Price: Low to High</option>
-              <option value="price_high">Price: High to Low</option>
-              <option value="featured">Featured First</option>
-            </select>
-
-            {/* Price filter */}
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="number"
-                placeholder="Min ₦"
-                value={priceRange.min}
-                onChange={(e) =>
-                  setPriceRange((p) => ({ ...p, min: e.target.value }))
-                }
-                style={{
-                  width: 80,
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  background: "#fff",
-                  border: `1px solid ${C.creamBorder}`,
-                  color: C.creamText,
-                  fontFamily: "Inter, sans-serif",
-                  outline: "none",
-                }}
-              />
-              <span style={{ fontSize: 12, color: C.creamMuted }}>–</span>
-              <input
-                type="number"
-                placeholder="Max ₦"
-                value={priceRange.max}
-                onChange={(e) =>
-                  setPriceRange((p) => ({ ...p, max: e.target.value }))
-                }
-                style={{
-                  width: 80,
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  background: "#fff",
-                  border: `1px solid ${C.creamBorder}`,
-                  color: C.creamText,
-                  fontFamily: "Inter, sans-serif",
-                  outline: "none",
-                }}
-              />
-              <button
-                onClick={fetchProducts}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: C.green,
-                  color: "#fff",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "Inter, sans-serif",
-                }}
-              >
-                Filter
-              </button>
-            </div>
+              Filter
+            </button>
           </div>
         </div>
 
-        {/* Product Grid */}
         {loading ? (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 16,
+              gridTemplateColumns: isMobile ? "repeat(2,1fr)" : "repeat(4,1fr)",
+              gap: isMobile ? 10 : 16,
             }}
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
                 style={{
@@ -622,13 +586,11 @@ function MarketplaceContent() {
                   border: `1px solid ${C.creamBorder}`,
                 }}
               >
-                <Skeleton h={180} radius={0} />
-                <div style={{ padding: 14 }}>
-                  <Skeleton h={16} w="80%" radius={4} />
+                <Skeleton h={isMobile ? 130 : 180} />
+                <div style={{ padding: 12 }}>
+                  <Skeleton h={14} w="80%" />
                   <div style={{ height: 8 }} />
-                  <Skeleton h={12} w="50%" radius={4} />
-                  <div style={{ height: 12 }} />
-                  <Skeleton h={28} radius={6} />
+                  <Skeleton h={24} />
                 </div>
               </div>
             ))}
@@ -638,20 +600,20 @@ function MarketplaceContent() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 16,
-                marginBottom: 24,
+                gridTemplateColumns: isMobile
+                  ? "repeat(2,1fr)"
+                  : "repeat(4,1fr)",
+                gap: isMobile ? 10 : 16,
+                marginBottom: 20,
               }}
             >
               {products.map((p) => (
-                <ProductCard key={p._id} product={p} />
+                <ProductCard key={p._id} product={p} isMobile={isMobile} />
               ))}
             </div>
-
-            {/* Pagination */}
             {totalPages > 1 && (
               <div
-                style={{ display: "flex", justifyContent: "center", gap: 8 }}
+                style={{ display: "flex", justifyContent: "center", gap: 6 }}
               >
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                   (p) => (
@@ -659,16 +621,16 @@ function MarketplaceContent() {
                       key={p}
                       onClick={() => setPage(p)}
                       style={{
-                        width: 36,
-                        height: 36,
+                        width: 34,
+                        height: 34,
                         borderRadius: 8,
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: 600,
                         border: `1px solid ${p === page ? C.green : C.creamBorder}`,
                         background: p === page ? C.green : "#fff",
                         color: p === page ? "#fff" : C.creamText,
                         cursor: "pointer",
-                        fontFamily: "Inter, sans-serif",
+                        fontFamily: "Inter,sans-serif",
                       }}
                     >
                       {p}
@@ -681,19 +643,19 @@ function MarketplaceContent() {
         ) : (
           <div
             style={{
-              padding: "72px 32px",
+              padding: isMobile ? "40px 16px" : "72px 32px",
               textAlign: "center",
               background: "#fff",
               border: `1px solid ${C.creamBorder}`,
               borderRadius: 16,
             }}
           >
-            <div style={{ fontSize: 56, marginBottom: 16 }}>
-              {currentCat ? currentCat.emoji : "🏪"}
+            <div style={{ fontSize: isMobile ? 40 : 56, marginBottom: 12 }}>
+              {curCat ? curCat.emoji : "🏪"}
             </div>
             <div
               style={{
-                fontSize: 18,
+                fontSize: isMobile ? 15 : 18,
                 fontWeight: 700,
                 color: C.creamText,
                 marginBottom: 8,
@@ -701,41 +663,26 @@ function MarketplaceContent() {
             >
               {search ? `No results for "${search}"` : "No products yet"}
             </div>
-            <div
-              style={{ fontSize: 14, color: C.creamMuted, marginBottom: 20 }}
-            >
-              {search
-                ? "Try different keywords"
-                : "Be the first to list a product in this category."}
-            </div>
             <Link
               href="/marketplace/store"
               style={{
                 display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "11px 22px",
+                padding: "10px 20px",
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: 700,
-                background: `linear-gradient(135deg, ${C.green}, ${C.greenLight})`,
+                background: `linear-gradient(135deg,${C.green},${C.greenLight})`,
                 color: "#fff",
                 textDecoration: "none",
-                boxShadow: "0 4px 14px rgba(45,122,58,0.3)",
+                marginTop: 10,
               }}
             >
-              + List Your Products
+              + List Products
             </Link>
           </div>
         )}
       </div>
-
-      <style>{`
-        @keyframes shimmer {
-          0%   { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
+      <style>{`@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
     </div>
   );
 }
@@ -745,7 +692,7 @@ export default function MarketplacePage() {
     <Suspense
       fallback={
         <div style={{ padding: 40, textAlign: "center", color: "#8A7560" }}>
-          Loading marketplace...
+          Loading...
         </div>
       }
     >
